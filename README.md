@@ -7,6 +7,10 @@ Minimalistinc include for fully automatic version checking agains the sponge ore
 
 To use this with gradle you should be able to just add the following to your **build.gradle**:
 ```
+plugins {
+	id 'java'
+	id 'com.github.johnrengelman.shadow' version '5.1.0'
+}
 allprojects {
 	repositories {
 		...
@@ -14,9 +18,11 @@ allprojects {
 	}
 }
 dependencies {
-    implementation 'com.github.DosMike:SpongePluginVersionChecker:<TAG>'
+    shadow 'com.github.DosMike:SpongePluginVersionChecker:1.0'
 }
 ```
+I don't use gradle so I don't really know how to generate a fat-jar. This build.gradle was the result
+of 15 minutes google research, gl;hf
 
 ## Usage example
 
