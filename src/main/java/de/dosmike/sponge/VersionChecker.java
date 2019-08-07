@@ -11,6 +11,7 @@ import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
+import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.plugin.meta.PluginDependency;
@@ -142,9 +143,8 @@ public class VersionChecker {
      * @param instance the plugin instance to check for updates
      * @param configDir where to search for the configuration (private plugin directory is recommended)
      * @param configName the name of the config file, if configDir is the public config dir it's recommended to start the filename with the plugin id
-     * @param asyncExecutor in order to take load off of the server thread update checking will be performed on this executor (if permitted)
      */
-    public static void conformAuto(Object instance, Path configDir, String configName, SpongeExecutorService asyncExecutor) {
+    public static void conformAuto(Object instance, Path configDir, String configName) {
         configDir.toFile().mkdirs();
         PluginContainer plugin = getPluginManager().fromInstance(instance).orElseThrow(()->new IllegalArgumentException("Passed onject is not a plugin"));
         HoconConfigurationLoader loader = HoconConfigurationLoader.builder()
@@ -160,11 +160,14 @@ public class VersionChecker {
                         "Set this value to true to allow this Plugin to check for Updates on Ore");
                 node.setValue(false);
                 loader.save(root);
+                setVersionCheckingEnabled(plugin.getId(), false);
             } else {
                 setVersionCheckingEnabled(plugin.getId(), root.getNode("enabled").getBoolean(false));
             }
-        } catch (IOException e) {}
-        asyncExecutor.submit(()->checkPluginVersion(plugin));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Task.builder().name("VersionChecker").async().execute(()->checkPluginVersion(plugin)).submit(instance);
     }
 
     public static void checkVersion(Object instance) {
@@ -172,7 +175,8 @@ public class VersionChecker {
         checkPluginVersion(plugin);
     }
 
-    public static synchronized void checkPluginVersion(PluginContainer plugin) {
+    public static void checkPluginVersion(PluginContainer plugin) {
+        plugin.getLogger().info("Searching for updates...");
         if (allowedVersionChecking.contains(plugin.getId()))
             _checkPluginVersion(plugin);
         else {
@@ -197,7 +201,6 @@ public class VersionChecker {
             JsonParser parser = new JsonParser();
             JsonElement root = parser.parse(reader);
             JsonObject recommended = root.getAsJsonObject().get("recommended").getAsJsonObject();
-            plugin.getLogger().info("Received "+root.toString());
 
             Version recommendedVersion = new Version(recommended.get("name").getAsString());
             if (recommendedVersion.compareTo(currentVersion)>0) {
