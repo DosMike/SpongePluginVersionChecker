@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+    id 'maven'
+    id 'org.spongepowered.plugin' version '0.9.0'
+    //id 'application'
+}
+//apply plugin: 'org.spongepowered.plugin:0.9.0'
+
+group = 'com.github.dosmike'
+version = '1.0'
+
+sourceCompatibility = 1.8 // java 8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    jcenter()
+    maven { url "https://jitpack.io" }
+}
+
+dependencies {
+    compile 'org.spongepowered:spongeapi:7.1.0'
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+jar {
+    manifest {
+        attributes('Implementation-Title': project.name,
+                'Implementation-Version': project.version)
+    }
+}
+
+// To specify a license in the pom:
+install {
+    repositories.mavenInstaller {
+        pom.project {
+            licenses {
+                license {
+                    name 'MIT License'
+                    url 'https://github.com/DosMike/SpongePluginVersionChecker/blob/master/LICENSE'
+                    distribution 'repo'
+                }
+            }
+        }
+    }
+}
