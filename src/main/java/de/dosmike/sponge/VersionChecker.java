@@ -31,7 +31,7 @@ import static org.spongepowered.api.Sponge.getPluginManager;
  * Best call conformAuto */
 public class VersionChecker {
 
-    private static final Version versionCheckerVersion = new Version("1.0");
+    private static final Version versionCheckerVersion = new Version("1.1");
 
     /** Supports version in the format major[.minor[.build[.revision[-[stage][patch]]
      * where stage is sorted alphabetically (alpha, beta, rc, release).<br>
