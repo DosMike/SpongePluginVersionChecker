@@ -18,11 +18,35 @@ allprojects {
 	}
 }
 dependencies {
-    shadow 'com.github.DosMike:SpongePluginVersionChecker:1.0'
+    shadow 'com.github.DosMike:SpongePluginVersionChecker:master-SNAPSHOT'
+}
+//from personal experience use this task to build your jar:
+task uberJar(type:ShadowJar, group:'_Plugin', dependsOn:removeOldVersions) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/**'
+    manifest {
+        attributes('Implementation-Title': project.name,
+                'Implementation-Version': project.version)
+    }
+    configurations = [project.configurations.shadow]
+    //relocate the version checker to avoid problems with different versions of versionChecker in different plugins
+    //conveniently the plugin id supports a limited character set that can be used as package name
+    relocate('de.dosmike.sponge', 'shadow.dosmike.versionchecker.'+pluginid) {
+        //don't relocate my actual plugins - yes, includes are paths!
+        include "de/dosmike/sponge/VersionChecker"
+        include "de/dosmike/sponge/VersionChecker\$Version"
+    }
+    from(sourceSets.main.resources)
+    from(sourceSets.main.output) //.output would not capture mcmod.info for me
+    classifier = null
+}
+
+//if you want your plugin to be jitpack-able, you'll have to add the shadow jar as artifact:
+artifacts {
+    archives uberJar
+	...
 }
 ```
-I don't use gradle so I don't really know how to generate a fat-jar. This build.gradle was the result
-of 15 minutes google research, gl;hf
 
 ## Usage example
 
@@ -35,6 +59,22 @@ This method checks if the specified config allows version checking. If so, it pe
 **instance**: the plugin instance to check for updates, usually `this`   
 **configDir**: where to search for the configuration (private plugin directory is recommended)   
 **configName**: the name of the config file, if configDir is the public config dir it's recommended to start the filename with the plugin id   
+
+Alternatively you can use
+`VersionChecker.setVersionCheckingEnabled(pluginId:String, allowVersionChecking:boolean);`
+followed by
+`VersionChecker.checkVersion(instance:Object)` or
+`VersionChecker.checkPluginVersion(container:PluginContainer)`
+
+**pluginId**: This should be your plugin id  
+**allowVersionChecking**: `true` if version checking is allowed. *To follow Ore Guidelines, this value may **ONLY** be set true from a config node like `node.getBoolean(false)`*  
+**instance**: Your plugin instance  
+**container**: Your plugin container
+
+## Debgging
+
+If the property VerboseVersionChecker is set to true VersionChecker will print additional information to
+the console.
 
 # License
 

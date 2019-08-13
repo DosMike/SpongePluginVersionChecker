@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.wrapper.Wrapper
+
 plugins {
     id 'java'
     id 'maven'
@@ -57,4 +59,9 @@ install {
             }
         }
     }
+}
+
+wrapper {
+    gradleVersion = "5.2.1"
+    distributionType = Wrapper.DistributionType.ALL
 }

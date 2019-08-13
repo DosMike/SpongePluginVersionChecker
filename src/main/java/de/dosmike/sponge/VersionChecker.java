@@ -8,6 +8,7 @@ import com.google.gson.stream.JsonReader;
 import ninja.leaping.configurate.ConfigurationOptions;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
+import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.plugin.PluginContainer;
 import org.spongepowered.api.scheduler.SpongeExecutorService;
@@ -191,12 +192,25 @@ public class VersionChecker {
         JsonReader reader=null;
         try {
             apiURL = new URL("https://ore.spongepowered.org/api/v1/projects/"+plugin.getId());
+            if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
+                plugin.getLogger().info("[VersionChecker] requesting "+apiURL.toString());
+            }
             HttpsURLConnection connection = (HttpsURLConnection)apiURL.openConnection();
             connection.setRequestMethod("GET");
             connection.setInstanceFollowRedirects(true);
             connection.setRequestProperty("User-Agent", "Version Checker ("+versionCheckerVersion.toString()+" by DosMike)/Plugin "+plugin.getName()+"("+plugin.getId()+" "+plugin.getVersion()+")");
             connection.setRequestProperty("Accept-Encoding", "identity");
-            if (connection.getResponseCode() != 200) throw new RuntimeException();
+            if (connection.getResponseCode() != 200) {
+                if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
+                    Logger l = plugin.getLogger();
+                    l.info("[VersionChecker] Response "+connection.getResponseCode()+" "+connection.getResponseMessage());
+                    l.info("[VersionChecker] received headers:");
+                    for (Map.Entry<String, List<String>> i : connection.getHeaderFields().entrySet()) {
+                        l.info("[VersionChecker] "+i.getKey()+": '"+String.join("', '",i.getValue()));
+                    }
+                }
+                throw new RuntimeException();
+            }
             reader = new JsonReader(new InputStreamReader(connection.getInputStream()));
             JsonParser parser = new JsonParser();
             JsonElement root = parser.parse(reader);
@@ -216,6 +230,9 @@ public class VersionChecker {
             connection.disconnect();
         } catch (Exception e) {
             plugin.getLogger().warn("VersionChecker for "+plugin.getId()+" could not connect to ORE");
+            if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
+                e.printStackTrace();
+            }
         } finally {
             try { reader.close(); } catch (Exception ignore) {}
         }
@@ -252,7 +269,11 @@ public class VersionChecker {
                     if (depCurrentVersion.compareTo(newDeps.get(pluginId))<0) {
                         plugin.getLogger().warn("> Requires Dependency Update: "+pluginId+" to version "+newDeps.get(pluginId).toString());
                     }
-                } catch (Exception e) {}
+                } catch (Exception e) {
+                    if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
         for (PluginDependency dep : plugin.getDependencies()) {
