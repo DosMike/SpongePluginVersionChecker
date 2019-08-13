@@ -32,7 +32,10 @@ import static org.spongepowered.api.Sponge.getPluginManager;
  * Best call conformAuto */
 public class VersionChecker {
 
-    private static final Version versionCheckerVersion = new Version("1.1");
+    private static final Version versionCheckerVersion = new Version("1.2");
+    public static Version getVersionCheckerVersion() {
+        return versionCheckerVersion;
+    }
 
     /** Supports version in the format major[.minor[.build[.revision[-[stage][patch]]
      * where stage is sorted alphabetically (alpha, beta, rc, release).<br>
@@ -61,7 +64,7 @@ public class VersionChecker {
                     revis == null ? -1 : Integer.parseInt(revis),
                     patch == null ? -1 : Integer.parseInt(patch)
             };
-            s = stage;
+            s = stage==null?"":stage;
         }
 
         /** @return <i><b>Major</b></i>.Minor.Build.Revision-StagePatch */
@@ -84,7 +87,7 @@ public class VersionChecker {
         public int getPatch() {
             return n[4];
         }
-        /** @return Major.Minor.Build.Revision-<i><b>Stage</b></i>Patch or -1 if not set */
+        /** @return Major.Minor.Build.Revision-<i><b>Stage</b></i>Patch or empty String if not set */
         public String getStage() {
             return s;
         }
@@ -101,9 +104,9 @@ public class VersionChecker {
             if (n[2]>=0) { sb.append('.'); sb.append(n[2]); }
             else if (n[3]>0) { sb.append(".0"); }
             if (n[3]>=0) { sb.append('.'); sb.append(n[3]); }
-            if (n[4]>=0 || s!=null) {
+            if (n[4]>=0 || !s.isEmpty()) {
                 sb.append('-');
-                if (s!=null) sb.append(s);
+                if (!s.isEmpty()) sb.append(s);
                 if (n[4]>=0) sb.append(n[4]);
             }
             return sb.toString();
