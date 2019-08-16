@@ -46,7 +46,7 @@ public class VersionChecker {
         private int[] n;
         private String s;
 
-        private static final Pattern versionPattern = Pattern.compile("([Vv]\\s*)?(\\d+)(?:\\.(\\d+)(?:\\.(\\d+)(?:\\.(\\d+))?)?)?(?:[-_]([a-zA-Z]+)?[-_]?(\\d+)?)?");
+        private static final Pattern versionPattern = Pattern.compile("(?:[Vv]\\s*)?(\\d+)(?:\\.(\\d+)(?:\\.(\\d+)(?:\\.(\\d+))?)?)?(?:[-_]([a-zA-Z]+)?[-_]?(\\d+)?)?");
         public Version (String version) {
             Matcher m = versionPattern.matcher(version);
             if (!m.matches())
