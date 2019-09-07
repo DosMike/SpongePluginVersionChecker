@@ -46,11 +46,11 @@ public class VersionChecker {
         private int[] n;
         private String s;
 
-        private static final Pattern versionPattern = Pattern.compile("(?:[Vv]\\s*)?(\\d+)(?:\\.(\\d+)(?:\\.(\\d+)(?:\\.(\\d+))?)?)?(?:[-_]([a-zA-Z]+)?[-_]?(\\d+)?)?");
+        private static final Pattern versionPattern = Pattern.compile("(?:[Vv]?\\s*)?(\\d+)(?:\\.(\\d+)(?:\\.(\\d+)(?:\\.(\\d+))?)?)?(?:[-_]([a-zA-Z]+)?[-_]?(\\d+)?)?");
         public Version (String version) {
             Matcher m = versionPattern.matcher(version);
             if (!m.matches())
-                throw new IllegalArgumentException("Invalid version string");
+                throw new IllegalArgumentException("Invalid version string: "+version);
             String major = m.group(1);
             String minor = m.group(2);
             String build = m.group(3);
