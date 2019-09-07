@@ -274,6 +274,7 @@ public class VersionChecker {
                     }
                 } catch (Exception e) {
                     if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
+                        plugin.getLogger().error("Error checking dependency "+pluginId);
                         e.printStackTrace();
                     }
                 }
