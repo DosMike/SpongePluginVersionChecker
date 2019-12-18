@@ -189,55 +189,81 @@ public class VersionChecker {
         }
     }
 
+    private static HttpsURLConnection _connectTo(PluginContainer forPlugin, String method, String url, String session) throws IOException {
+        URL apiURL = new URL(url);
+        if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
+            forPlugin.getLogger().info("[VersionChecker] requesting "+apiURL.toString());
+        }
+        HttpsURLConnection connection = (HttpsURLConnection)apiURL.openConnection();
+        connection.setRequestMethod(method);
+        connection.setInstanceFollowRedirects(true);
+        connection.setRequestProperty("User-Agent", "Version Checker ("+versionCheckerVersion.toString()+" by DosMike)/Plugin "+forPlugin.getName()+"("+forPlugin.getId()+" "+forPlugin.getVersion()+")");
+        connection.setRequestProperty("Accept-Encoding", "identity");
+        if (session != null) connection.setRequestProperty("Authorization", "OreApi session="+session);
+        if (connection.getResponseCode() != 200) {
+            if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
+                Logger l = forPlugin.getLogger();
+                l.info("[VersionChecker] Response "+connection.getResponseCode()+" "+connection.getResponseMessage());
+                l.info("[VersionChecker] received headers:");
+                for (Map.Entry<String, List<String>> i : connection.getHeaderFields().entrySet()) {
+                    l.info("[VersionChecker] "+i.getKey()+": '"+String.join("', '",i.getValue()));
+                }
+            }
+            throw new RuntimeException();
+        }
+        return connection;
+    }
+    private static JsonObject _fetchJson(HttpsURLConnection connection) throws IOException {
+        JsonReader reader=null;
+        try {
+            reader = new JsonReader(new InputStreamReader(connection.getInputStream()));
+            JsonParser parser = new JsonParser();
+            return parser.parse(reader).getAsJsonObject();
+        } finally {
+            try { reader.close(); } catch (Exception ignore) {}
+        }
+    }
+
     private static void _checkPluginVersion(PluginContainer plugin) {
         Version currentVersion = new Version(plugin.getVersion().get());
         URL apiURL;
-        JsonReader reader=null;
+        JsonObject response;
         try {
-            apiURL = new URL("https://ore.spongepowered.org/api/v1/projects/"+plugin.getId());
-            if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
-                plugin.getLogger().info("[VersionChecker] requesting "+apiURL.toString());
-            }
-            HttpsURLConnection connection = (HttpsURLConnection)apiURL.openConnection();
-            connection.setRequestMethod("GET");
-            connection.setInstanceFollowRedirects(true);
-            connection.setRequestProperty("User-Agent", "Version Checker ("+versionCheckerVersion.toString()+" by DosMike)/Plugin "+plugin.getName()+"("+plugin.getId()+" "+plugin.getVersion()+")");
-            connection.setRequestProperty("Accept-Encoding", "identity");
-            if (connection.getResponseCode() != 200) {
-                if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
-                    Logger l = plugin.getLogger();
-                    l.info("[VersionChecker] Response "+connection.getResponseCode()+" "+connection.getResponseMessage());
-                    l.info("[VersionChecker] received headers:");
-                    for (Map.Entry<String, List<String>> i : connection.getHeaderFields().entrySet()) {
-                        l.info("[VersionChecker] "+i.getKey()+": '"+String.join("', '",i.getValue()));
-                    }
-                }
-                throw new RuntimeException();
-            }
-            reader = new JsonReader(new InputStreamReader(connection.getInputStream()));
-            JsonParser parser = new JsonParser();
-            JsonElement root = parser.parse(reader);
-            JsonObject recommended = root.getAsJsonObject().get("recommended").getAsJsonObject();
-
-            Version recommendedVersion = new Version(recommended.get("name").getAsString());
+            //authorizing session
+            response = _fetchJson(_connectTo(plugin,"POST", "https://ore.spongepowered.org/api/v2/authenticate", null));
+            if (!response.has("session"))
+                throw new IllegalStateException("Could not create OreApi/v2 session");
+            String session = response.get("session").getAsString();
+            //fetching data
+            response = _fetchJson(_connectTo(plugin,"GET", "https://ore.spongepowered.org/api/v2/projects/"+plugin.getId(), session));
+            //get latest promoted version (not checking tags rn)
+            if (!response.has("promoted_versions") || response.get("promoted_versions").isJsonNull())
+                throw new IllegalStateException("Target has no promoted versions");
+            JsonArray promoted_version_list = response.getAsJsonArray("promoted_versions");
+            if (promoted_version_list.size()==0)
+                throw new IllegalStateException("Target has no promoted versions");
+            JsonObject latest = promoted_version_list.get(0).getAsJsonObject();
+            //parse and compare versions
+            String stringVersion = latest.get("version").getAsString();
+            Version recommendedVersion = new Version(stringVersion);
             if (recommendedVersion.compareTo(currentVersion)>0) {
 
                 plugin.getLogger().warn("Update Found: "+plugin.getName()+"("+plugin.getId()+") Version "+recommendedVersion.toString()+" is available on Ore!");
 
-                String[] updateText = recommended.get("description").getAsString().split("(?:\\r)?\\n");
+                //check dependencies
+                response = _fetchJson(_connectTo(plugin,"GET", "https://ore.spongepowered.org/api/v2/projects/"+plugin.getId()+"/versions/"+stringVersion, session));
+
+                String[] updateText = response.get("description").getAsString().split("(?:\\r)?\\n");
                 for (String line : updateText)
                     plugin.getLogger().warn("  "+line);
 
-                _checkPluginDependencies(plugin, recommended.get("dependencies").getAsJsonArray());
+                _checkPluginDependencies(plugin, response.get("dependencies").getAsJsonArray());
             }
-            connection.disconnect();
         } catch (Exception e) {
             plugin.getLogger().warn("VersionChecker for "+plugin.getId()+" could not connect to ORE");
             if (System.getProperty("VerboseVersionChecker", "false").equalsIgnoreCase("true")) {
                 e.printStackTrace();
             }
-        } finally {
-            try { reader.close(); } catch (Exception ignore) {}
         }
     }
 
@@ -246,7 +272,7 @@ public class VersionChecker {
         Set<String> ignore = new HashSet<>();
         for (int i = 0; i < dependencies.size(); i++) {
             JsonObject obj = dependencies.get(i).getAsJsonObject();
-            String pluginId = obj.get("pluginId").getAsString();
+            String pluginId = obj.get("plugin_id").getAsString();
             String versionString = obj.get("version").getAsString();
             Version version;
             try {
